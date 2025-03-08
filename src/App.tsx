@@ -65,7 +65,7 @@ function App() {
     <div className="min-h-screen bg-gray-100 p-8">
       <div className="max-w-6xl mx-auto">
         <h1 className="text-3xl font-bold mb-8">Video Overlay Preview</h1>
-        <div>Debemos tener un archivo inicial con los datos, se puede generar desde la hoja de video</div>
+        
         <div className="mb-8">
           <label className="block mb-2 text-sm font-medium">
             Upload CSV File:

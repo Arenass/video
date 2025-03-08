@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import type { OverlayItem } from '../types';
-import { Grid, Download, Edit2, Save, MousePointer2, Upload, Check, Square } from 'lucide-react';
+import { Grid, Download, Edit2, Save, MousePointer2, Upload, Check, Square, Send, Trash2, Video } from 'lucide-react';
 
 interface ImageDimensions {
   width: number;
@@ -32,6 +32,12 @@ export function VideoPreview({ overlayItems: initialOverlayItems }: Props) {
   const [scale, setScale] = useState(1);
   const [selectedItems, setSelectedItems] = useState<number[]>([]);
   const [targetHeight, setTargetHeight] = useState<number>(0);
+  const [newImageUrl, setNewImageUrl] = useState<string>('');
+  const [videoInfo, setVideoInfo] = useState<{
+    name: string;
+    duration: number;
+    dimensions: { width: number; height: number };
+  } | null>(null);
 
   useEffect(() => {
     setOverlayItems(initialOverlayItems);
@@ -63,19 +69,46 @@ export function VideoPreview({ overlayItems: initialOverlayItems }: Props) {
     loadImageDimensions();
   }, [overlayItems]);
 
+  const handleAddNewImage = () => {
+    if (!newImageUrl) return;
+
+    const newItem: OverlayItem = {
+      url_imagen: newImageUrl,
+      posicion_x: 50,
+      posicion_y: 10,
+      ancho: 300,
+      tiempo_inicio: 2,
+      duracion: 8,
+      fondo: 'opacidad',
+      transicion: 'difuminado'
+    };
+
+    setOverlayItems(prev => [...prev, newItem]);
+    setNewImageUrl('');
+    setEditingItem(overlayItems.length);
+  };
+
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
       setVideoFile(file);
+      setVideoInfo(null);
     }
   };
 
   const handleVideoLoad = () => {
-    if (videoRef.current) {
+    if (videoRef.current && videoFile) {
       const width = videoRef.current.videoWidth || 1920;
       const height = videoRef.current.videoHeight || 1080;
+      const duration = videoRef.current.duration;
+      
       setVideoDimensions({ width, height });
-      setVideoDuration(videoRef.current.duration);
+      setVideoDuration(duration);
+      setVideoInfo({
+        name: videoFile.name,
+        duration: duration,
+        dimensions: { width, height }
+      });
       updateScale();
     }
   };
@@ -142,6 +175,16 @@ export function VideoPreview({ overlayItems: initialOverlayItems }: Props) {
       }
       return [...prev, index];
     });
+  };
+
+  const handleDeleteItem = (index: number) => {
+    const newItems = [...overlayItems];
+    newItems.splice(index, 1);
+    setOverlayItems(newItems);
+    if (editingItem === index) {
+      setEditingItem(null);
+      setTempEditValues(null);
+    }
   };
 
   const applyTargetHeight = () => {
@@ -235,6 +278,19 @@ export function VideoPreview({ overlayItems: initialOverlayItems }: Props) {
 
   return (
     <div className="w-full max-w-full flex flex-col">
+      {videoInfo && (
+        <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-4 flex items-center gap-3">
+          <Video className="text-green-600" size={24} />
+          <div className="text-green-800">
+            <p className="font-medium">Video cargado: {videoInfo.name}</p>
+            <p className="text-sm">
+              Dimensiones: {videoInfo.dimensions.width}x{videoInfo.dimensions.height}px | 
+              Duración: {videoInfo.duration.toFixed(1)} segundos
+            </p>
+          </div>
+        </div>
+      )}
+
       <div className="flex gap-4 items-center p-4">
         <label 
           onClick={() => fileInputRef.current?.click()}
@@ -370,171 +426,190 @@ export function VideoPreview({ overlayItems: initialOverlayItems }: Props) {
       </div>
 
       <div ref={tableRef} className="bg-white rounded-lg shadow overflow-x-auto mt-8">
-        <div className="p-4 border-b flex items-center gap-4">
-          <div className="flex items-center gap-2">
-            <input
-              type="number"
-              value={targetHeight}
-              onChange={(e) => setTargetHeight(Math.max(0, Number(e.target.value)))}
-              placeholder="Altura objetivo (px)"
-              className="w-32 border rounded px-2 py-1"
-            />
-            <button
-              onClick={applyTargetHeight}
-              disabled={targetHeight <= 0 || selectedItems.length === 0}
-              className="px-4 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              Aplicar altura
-            </button>
+        <div className="p-4 border-b">
+          <div className="flex flex-wrap items-center gap-4">
+            <div className="flex items-center gap-2">
+              <input
+                type="number"
+                value={targetHeight}
+                onChange={(e) => setTargetHeight(Math.max(0, Number(e.target.value)))}
+                placeholder="Altura objetivo (px)"
+                className="w-32 border rounded px-2 py-1"
+              />
+              <button
+                onClick={applyTargetHeight}
+                disabled={targetHeight <= 0 || selectedItems.length === 0}
+                className="px-4 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Aplicar altura
+              </button>
+            </div>
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                value={newImageUrl}
+                onChange={(e) => setNewImageUrl(e.target.value)}
+                placeholder="URL de la imagen"
+                className="w-64 border rounded px-2 py-1"
+              />
+              <button
+                onClick={handleAddNewImage}
+                disabled={!newImageUrl}
+                className="px-4 py-1 bg-green-500 text-white rounded hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center gap-2"
+              >
+                <Send size={16} />
+                Añadir
+              </button>
+            </div>
+            <span className="text-sm text-gray-500 ml-auto">
+              {selectedItems.length} elementos seleccionados
+            </span>
           </div>
-          <span className="text-sm text-gray-500">
-            {selectedItems.length} elementos seleccionados
-          </span>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Select</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Image</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Position</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Width</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Time</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Settings</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {sortedOverlayItems.map((item, index) => {
-                const isEditing = editingItem === index;
-                const editValues = isEditing && tempEditValues ? { ...item, ...tempEditValues } : item;
-                const isActive = currentTime >= item.tiempo_inicio && currentTime <= (item.tiempo_inicio + item.duracion);
-                const isSelected = selectedItems.includes(index);
-                const dimensions = imageDimensions[item.url_imagen];
-                const calculatedHeight = dimensions ? Math.round((item.ancho * dimensions.height) / dimensions.width) : null;
+        <table className="min-w-full divide-y divide-gray-200">
+          <thead className="bg-gray-50">
+            <tr>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Select</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Image</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Position</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Width</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Time</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Settings</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+            </tr>
+          </thead>
+          <tbody className="bg-white divide-y divide-gray-200">
+            {sortedOverlayItems.map((item, index) => {
+              const isEditing = editingItem === index;
+              const editValues = isEditing && tempEditValues ? { ...item, ...tempEditValues } : item;
+              const isActive = currentTime >= item.tiempo_inicio && currentTime <= (item.tiempo_inicio + item.duracion);
+              const isSelected = selectedItems.includes(index);
+              const dimensions = imageDimensions[item.url_imagen];
+              const calculatedHeight = dimensions ? Math.round((item.ancho * dimensions.height) / dimensions.width) : null;
 
-                return (
-                  <tr 
-                    key={index}
-                    className={`transition-colors duration-300 ${
-                      isEditing ? 'bg-blue-50' : 
-                      isActive ? 'bg-green-50' :
-                      isSelected ? 'bg-yellow-50' : ''
-                    }`}
-                  >
-                    <td className="px-6 py-4">
-                      <button
-                        onClick={() => handleItemSelect(index)}
-                        className={`p-1.5 rounded ${
-                          isSelected ? 'text-blue-500' : 'text-gray-400 hover:text-gray-600'
-                        }`}
-                      >
-                        {isSelected ? <Check size={20} /> : <Square size={20} />}
-                      </button>
-                    </td>
-                    <td className="px-6 py-4">
-                      <img 
-                        src={item.url_imagen} 
-                        alt="Preview" 
-                        className="h-8 w-auto"
-                      />
-                    </td>
-                    <td className="px-6 py-4">
-                      {isEditing ? (
-                        <div className="flex gap-2">
-                          <input
-                            type="number"
-                            value={editValues.posicion_x}
-                            onChange={(e) => handleItemUpdate(index, { posicion_x: Number(e.target.value) })}
-                            className="w-20 border rounded px-2 py-1"
-                          />
-                          <input
-                            type="number"
-                            value={editValues.posicion_y}
-                            onChange={(e) => handleItemUpdate(index, { posicion_y: Number(e.target.value) })}
-                            className="w-20 border rounded px-2 py-1"
-                          />
-                        </div>
-                      ) : (
-                        <span>X: {item.posicion_x}, Y: {item.posicion_y}</span>
-                      )}
-                    </td>
-                    <td className="px-6 py-4">
-                      {isEditing ? (
+              return (
+                <tr 
+                  key={index}
+                  className={`transition-colors duration-300 ${
+                    isEditing ? 'bg-blue-50' : 
+                    isActive ? 'bg-green-50' :
+                    isSelected ? 'bg-yellow-50' : ''
+                  }`}
+                >
+                  <td className="px-6 py-4">
+                    <button
+                      onClick={() => handleItemSelect(index)}
+                      className={`p-1.5 rounded ${
+                        isSelected ? 'text-blue-500' : 'text-gray-400 hover:text-gray-600'
+                      }`}
+                    >
+                      {isSelected ? <Check size={20} /> : <Square size={20} />}
+                    </button>
+                  </td>
+                  <td className="px-6 py-4">
+                    <img 
+                      src={item.url_imagen} 
+                      alt="Preview" 
+                      className="h-8 w-auto"
+                    />
+                  </td>
+                  <td className="px-6 py-4">
+                    {isEditing ? (
+                      <div className="flex gap-2">
                         <input
                           type="number"
-                          value={editValues.ancho}
-                          onChange={(e) => handleItemUpdate(index, { ancho: Number(e.target.value) })}
+                          value={editValues.posicion_x}
+                          onChange={(e) => handleItemUpdate(index, { posicion_x: Number(e.target.value) })}
                           className="w-20 border rounded px-2 py-1"
                         />
-                      ) : (
-                        <div>
-                          <div>{item.ancho}px</div>
-                          {calculatedHeight && (
-                            <div className="text-xs text-gray-500 mt-1">
-                              Alto: {calculatedHeight}px
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </td>
-                    <td className="px-6 py-4">
-                      <div 
-                        className="cursor-pointer hover:text-blue-600"
-                        onClick={() => jumpToItemTime(item)}
-                      >
-                        {isEditing ? (
-                          <div className="flex gap-2">
-                            <input
-                              type="number"
-                              value={editValues.tiempo_inicio}
-                              onChange={(e) => handleItemUpdate(index, { tiempo_inicio: Number(e.target.value) })}
-                              step="0.1"
-                              className="w-20 border rounded px-2 py-1"
-                            />
-                            <input
-                              type="number"
-                              value={editValues.duracion}
-                              onChange={(e) => handleItemUpdate(index, { duracion: Number(e.target.value) })}
-                              step="0.1"
-                              className="w-20 border rounded px-2 py-1"
-                            />
+                        <input
+                          type="number"
+                          value={editValues.posicion_y}
+                          onChange={(e) => handleItemUpdate(index, { posicion_y: Number(e.target.value) })}
+                          className="w-20 border rounded px-2 py-1"
+                        />
+                      </div>
+                    ) : (
+                      <span>X: {item.posicion_x}, Y: {item.posicion_y}</span>
+                    )}
+                  </td>
+                  <td className="px-6 py-4">
+                    {isEditing ? (
+                      <input
+                        type="number"
+                        value={editValues.ancho}
+                        onChange={(e) => handleItemUpdate(index, { ancho: Number(e.target.value) })}
+                        className="w-20 border rounded px-2 py-1"
+                      />
+                    ) : (
+                      <div>
+                        <div>{item.ancho}px</div>
+                        {calculatedHeight && (
+                          <div className="text-xs text-gray-500 mt-1">
+                            Alto: {calculatedHeight}px
                           </div>
-                        ) : (
-                          <span>
-                            {item.tiempo_inicio}s - {(item.tiempo_inicio + item.duracion).toFixed(1)}s
-                          </span>
                         )}
                       </div>
-                    </td>
-                    <td className="px-6 py-4">
+                    )}
+                  </td>
+                  <td className="px-6 py-4">
+                    <div 
+                      className="cursor-pointer hover:text-blue-600"
+                      onClick={() => jumpToItemTime(item)}
+                    >
                       {isEditing ? (
                         <div className="flex gap-2">
-                          <select
-                            value={editValues.fondo}
-                            onChange={(e) => handleItemUpdate(index, { fondo: e.target.value as 'transparente' | 'opacidad' })}
-                            className="border rounded px-2 py-1"
-                          >
-                            <option value="transparente">Transparente</option>
-                            <option value="opacidad">Opacidad</option>
-                          </select>
-                          <select
-                            value={editValues.transicion}
-                            onChange={(e) => handleItemUpdate(index, { transicion: e.target.value as 'difuminado' | 'lateral' })}
-                            className="border rounded px-2 py-1"
-                          >
-                            <option value="difuminado">Difuminado</option>
-                            <option value="lateral">Lateral</option>
-                          </select>
+                          <input
+                            type="number"
+                            value={editValues.tiempo_inicio}
+                            onChange={(e) => handleItemUpdate(index, { tiempo_inicio: Number(e.target.value) })}
+                            step="0.1"
+                            className="w-20 border rounded px-2 py-1"
+                          />
+                          <input
+                            type="number"
+                            value={editValues.duracion}
+                            onChange={(e) => handleItemUpdate(index, { duracion: Number(e.target.value) })}
+                            step="0.1"
+                            className="w-20 border rounded px-2 py-1"
+                          />
                         </div>
                       ) : (
-                        <span>{item.fondo}, {item.transicion}</span>
+                        <span>
+                          {item.tiempo_inicio}s - {(item.tiempo_inicio + item.duracion).toFixed(1)}s
+                        </span>
                       )}
-                    </td>
-                    <td className="px-6 py-4">
+                    </div>
+                  </td>
+                  <td className="px-6 py-4">
+                    {isEditing ? (
+                      <div className="flex gap-2">
+                        <select
+                          value={editValues.fondo}
+                          onChange={(e) => handleItemUpdate(index, { fondo: e.target.value as 'transparente' | 'opacidad' })}
+                          className="border rounded px-2 py-1"
+                        >
+                          <option value="transparente">Transparente</option>
+                          <option value="opacidad">Opacidad</option>
+                        </select>
+                        <select
+                          value={editValues.transicion}
+                          onChange={(e) => handleItemUpdate(index, { transicion: e.target.value as 'difuminado' | 'lateral' })}
+                          className="border rounded px-2 py-1"
+                        >
+                          <option value="difuminado">Difuminado</option>
+                          <option value="lateral">Lateral</option>
+                        </select>
+                      </div>
+                    ) : (
+                      <span>{item.fondo}, {item.transicion}</span>
+                    )}
+                  </td>
+                  <td className="px-6 py-4">
+                    <div className="flex gap-2">
                       {isEditing ? (
-                        <div className="flex gap-2">
+                        <>
                           <button
                             onClick={() => handleEditSave(index)}
                             className="p-1.5 bg-green-500 hover:bg-green-600 rounded-full text-white"
@@ -549,23 +624,32 @@ export function VideoPreview({ overlayItems: initialOverlayItems }: Props) {
                           >
                             <Edit2 size={16} className="rotate-45" />
                           </button>
-                        </div>
+                        </>
                       ) : (
-                        <button
-                          onClick={() => handleEditStart(index)}
-                          className="p-1.5 bg-gray-100 hover:bg-gray-200 rounded-full text-gray-600"
-                          title="Editar"
-                        >
-                          <Edit2 size={16} />
-                        </button>
+                        <>
+                          <button
+                            onClick={() => handleEditStart(index)}
+                            className="p-1.5 bg-gray-100 hover:bg-gray-200 rounded-full text-gray-600"
+                            title="Editar"
+                          >
+                            <Edit2 size={16} />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteItem(index)}
+                            className="p-1.5 bg-red-100 hover:bg-red-200 rounded-full text-red-600"
+                            title="Eliminar"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </>
                       )}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
       </div>
     </div>
   );
